@@ -1,1 +1,1 @@
-# CSCI-566 Class Project - Generate Anime Faces using Unprofessional User Sketch with Color Hints
+# Sketch2Anime
