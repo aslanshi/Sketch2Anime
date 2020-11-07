@@ -55,23 +55,14 @@ class EncoderBlock(nn.Module):
         # convolution to halve the dimensions
         self.conv = nn.Conv2d(channel_in, channel_out, kernel_size, padding=padding, stride=stride)
         self.bn = nn.BatchNorm2d(channel_out, momentum=0.9)
-        self.relu = nn.LeakyReLU(1)
+        self.relu = nn.LeakyReLU()
 
-    def forward(self, ten, out=False, t=False):
-        # print('ten',ten.shape)
-        # here we want to be able to take an intermediate output for reconstruction error
-        if out:
-            ten = self.conv(ten)
-            ten_out = ten
-            ten = self.bn(ten)
-            ten = self.relu(ten)
-            return (ten, ten_out)
-        else:
-            ten = self.conv(ten)
-            ten = self.bn(ten)
-            # print(ten.shape)
-            ten = self.relu(ten)
-            return ten
+    def forward(self, x):
+
+        x = self.conv(x)
+        x = self.bn(x)
+        x = self.relu(x)
+        return x
 
 class DecoderBlock(nn.Module):
 
@@ -81,12 +72,12 @@ class DecoderBlock(nn.Module):
         layers_list.append(nn.ConvTranspose2d(channel_in, channel_out, kernel_size, padding=padding, stride=stride, output_padding=output_padding))
         layers_list.append(nn.BatchNorm2d(channel_out, momentum=0.9))
         if (norelu == False):
-            layers_list.append(nn.LeakyReLU(1))
+            layers_list.append(nn.LeakyReLU())
         self.conv = nn.Sequential(*layers_list)
 
-    def forward(self, ten):
-        ten = self.conv(ten)
-        return ten
+    def forward(self, x):
+        x = self.conv(x)
+        return x
 
 
 class ResnetBlock(nn.Module):
@@ -125,9 +116,9 @@ class ResnetBlock(nn.Module):
         return nn.Sequential(*conv_block)
 
     def forward(self, x):
-        # print(x.shape)
-        out = (x + self.conv_block(x))
-        return out
+
+        x = (x + self.conv_block(x))
+        return x
 
 class Encoder_Res(nn.Module):
     """docstring for  EncoderGenerator"""
@@ -165,16 +156,12 @@ class Encoder_Res(nn.Module):
         for m in self.modules():
             weights_init_normal(m)
 
-    def forward(self, ten):
-        # ten = ten[:,:,:]
-        # ten2 = jt.reshape(ten,[ten.size()[0],-1])
-        # print(ten.shape, ten2.shape)
-        ten = self.conv(ten)
-        ten = torch.reshape(ten,(ten.size()[0],-1))
-        # print(ten.shape,self.longsize)
-        mu = self.fc_mu(ten)
-        # logvar = self.fc_var(ten)
-        return mu#,logvar
+    def forward(self, x):
+
+        x = self.conv(x)
+        x = torch.reshape(x,(x.size()[0],-1))
+        mu = self.fc_mu(x)
+        return mu
 
 class Decoder_Res(nn.Module):
 
@@ -212,16 +199,13 @@ class Decoder_Res(nn.Module):
         for m in self.modules():
             weights_init_normal(m)
 
-    def forward(self, ten):
-        # print("in DecoderGenerator, print some shape ")
-        # print(ten.size())
-        ten = self.fc(ten)
-        # print(ten.size())
-        ten = torch.reshape(ten,(ten.size()[0],512, self.latent_size, self.latent_size))
-        # print(ten.size())
-        ten = self.conv(ten)
+    def forward(self, x):
 
-        return ten
+        x = self.fc(x)
+        x = torch.reshape(x,(x.size()[0],512, self.latent_size, self.latent_size))
+        x = self.conv(x)
+
+        return x
 
 class Decoder_feature_Res(nn.Module):
 
@@ -265,20 +249,17 @@ class Decoder_feature_Res(nn.Module):
         for m in self.modules():
             weights_init_normal(m)
 
-    def forward(self, ten):
-        # print("in DecoderGenerator, print some shape ")
-        # print(ten.size())
-        ten = self.fc(ten)
-        # print(ten.size())
-        ten = torch.reshape(ten,(ten.size()[0],512, self.latent_size, self.latent_size))
-        # print(ten.size())
-        ten = self.conv(ten)
+    def forward(self, x):
 
-        return ten
+        x = self.fc(x)
+        x = torch.reshape(x,(x.size()[0],512, self.latent_size, self.latent_size))
+        x = self.conv(x)
+
+        return x
 
 class GlobalGenerator(nn.Module):
 
-    def __init__(self, input_nc, output_nc, ngf=64, n_downsampling=3, n_blocks=9, norm_layer=nn.BatchNorm2d, padding_type='reflect'):
+    def __init__(self, input_nc, output_nc=3, ngf=64, n_downsampling=3, n_blocks=9, norm_layer=nn.BatchNorm2d, padding_type='reflect'):
         assert (n_blocks >= 0)
         super(GlobalGenerator, self).__init__()
         activation = nn.ReLU()
@@ -307,6 +288,33 @@ class GlobalGenerator(nn.Module):
     def forward(self, input):
         return self.model(input)
 
+class Discriminator(nn.Module):
+
+    def __init__(self, input_nc, ngf=64, n_downsampling=3, n_blocks=9, norm_layer=nn.BatchNorm2d, padding_type='reflect'):
+        super(Discriminator, self).__init__()
+
+        activation = nn.ReLU()
+        model = [nn.ReflectionPad2d(3), nn.Conv2d(input_nc, ngf, 7, padding=0), norm_layer(ngf), activation]
+        ### downsample
+        for i in range(n_downsampling):
+            mult = (2 ** i)
+            model += [nn.Conv2d((ngf * mult), ((ngf * mult) * 2), 3, stride=2, padding=1), norm_layer(((ngf * mult) * 2)), activation]
+        
+        ### resnet blocks
+        mult = (2 ** n_downsampling)
+        for i in range(n_blocks):
+            model += [ResnetBlock((ngf * mult), padding_type=padding_type, activation=activation, norm_layer=norm_layer)]
+
+        model += [nn.Flatten(), nn.Linear(ngf * mult * 64 * 64, 1)]
+        self.model = nn.Sequential(*model)
+
+        for m in self.modules():
+            weights_init_normal(m)
+
+    def forward(self, input):
+        # print(self.model(input).shape)
+        return self.model(input)
+        
 class VGGFeature(nn.Module):
 
     def __init__(self):
@@ -344,7 +352,7 @@ def define_part_encoder(model='mouth', norm='instance', input_nc=1, latent_dim=5
         
     # input longsize 256 to 512*4*4
     net_encoder = Encoder_Res(norm_layer, image_size, input_nc, latent_dim)     
-    print("net_encoder of part " + model + " is:", image_size)
+    # print("net_encoder of part " + model + " is:", image_size)
 
     return net_encoder
 
@@ -359,12 +367,14 @@ def define_part_decoder(model='mouth', norm='instance', output_nc=1, latent_dim=
         image_size = 192
     elif 'nose' in model:
         image_size = 160
+    elif 'face' in model:
+        image_size = 512
     else:
         print("Whole Image !!")
     
      # input longsize 256 to 512*4*4
     net_decoder = Decoder_Res(norm_layer, image_size, output_nc, latent_dim) 
-    print("net_decoder to image of part "+model+" is:",image_size)
+    # print("net_decoder to image of part "+model+" is:",image_size)
 
     return net_decoder
 
@@ -379,16 +389,18 @@ def define_feature_decoder(model='mouth', norm='instance', output_nc=1, latent_d
         image_size = 192
     elif 'nose' in model:
         image_size = 160
+    elif 'face' in model:
+        image_size = 512
     else:
         print("Whole Image !!")
 
     # input longsize 256 to 512*4*4
     net_decoder = Decoder_feature_Res(norm_layer,image_size,output_nc, latent_dim) 
-    print("net_decoder to image of part "+model+" is:",image_size)
+    # print("net_decoder to image of part "+model+" is:",image_size)
     
     return net_decoder
 
-def define_G(input_nc, output_nc, ngf, n_downsample_global=3, n_blocks_global=9, norm='instance'):
+def define_G(input_nc, ngf, output_nc=3, n_downsample_global=3, n_blocks_global=9, norm='instance'):
     """define generator during Image Synthesis phase"""
     
     norm_layer = get_norm_layer(norm_type=norm)     
