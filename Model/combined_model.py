@@ -2,7 +2,13 @@ import torch
 import torch.nn as nn
 from . import models
 
+####################
+# work in progress #
+####################
+
 class Combined_Model(nn.Module):
+
+	"""combine all networks and use for inference"""
 
 	def __init__(self, params):
 		super(Combined_Model, self).__init__()
