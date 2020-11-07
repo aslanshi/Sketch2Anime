@@ -10,7 +10,7 @@ class Combined_Model(nn.Module):
 
 	"""combine all networks and use for inference"""
 
-	def __init__(self, params):
+	def __init__(self, params, inference=False):
 		super(Combined_Model, self).__init__()
 
 		self.params = params
@@ -24,11 +24,13 @@ class Combined_Model(nn.Module):
 		self.feature_decoder = Feature_Decoder(self.params)
 		self.G = netG(self.params)
 
-		# load weights
 		for key in self.parts.keys():
 			self.part_encoder[key].load_model('encoder', self.parts[key])
-		self.feature_decoder.load_model(self.params['fd_weights'])
-		self.G.load_model(self.params['g_weights'])
+
+		# load weights for FD and G when inferencing
+		if inference:
+			self.feature_decoder.load_model(self.params['fd_weights'])
+			self.G.load_model(self.params['g_weights'])
 
 	def inference(self, sketch, hint):
 

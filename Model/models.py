@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
-from . import network
+from . import networks
 
 class Component_AE(nn.Module):
 
-	def __init__(self, params):
-	"""params = {'component': str, 'CAE_norm': str}"""  
+    def __init__(self, params):
+    """params = {'component': str, 'CAE_norm': str}"""  
         super(Component_AE, self).__init__()
 
         self.encoder = define_part_encoder(model=params['component'], norm=params['CAE_norm'])
@@ -33,8 +33,8 @@ class Component_AE(nn.Module):
 
 class Feature_Decoder(nn.Module):
 
-	def __init__(self, params):
-	"""params = {'component': str, 'FD_norm': str, 'FD_output_channels': int}"""  
+    def __init__(self, params):
+    """params = {'component': str, 'FD_norm': str, 'FD_output_channels': int}"""  
         super(Feature_Decoder, self).__init__()
         self.decoder = define_feature_decoder(model=params['component'], norm=params['FD_norm'], output_nc = params['FD_output_channels'])
 
@@ -45,15 +45,14 @@ class Feature_Decoder(nn.Module):
 
 class netG(nn.Module):
 
-	def __init__(self, params):
-	"""params = {'G_input_nc': int, 'ngf': int, 'G_norm': str}"""
-	#input_nc, output_nc, ngf, n_downsample_global=3, n_blocks_global=9, norm='instance'
-		super(netG, self).__init__()
-		self.G = define_G(input_nc=params['G_input_nc'], ngf=params['ngf'], norm=['G_norm'])
+    def __init__(self, params):
+    """params = {'G_input_nc': int, 'ngf': int, 'G_norm': str}"""
+    	super(netG, self).__init__()
+    	self.G = define_G(input_nc=params['G_input_nc'], ngf=params['ngf'], norm=['G_norm'])
 
-	def load_model(self, weights):
+    def load_model(self, weights):
 
-		self.G.load_state_dict(torch.load(weights))
-		self.G.eval()
+    	self.G.load_state_dict(torch.load(weights))
+    	self.G.eval()
 
 
