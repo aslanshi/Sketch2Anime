@@ -290,7 +290,7 @@ class GlobalGenerator(nn.Module):
 
 class Discriminator(nn.Module):
 
-    def __init__(self, input_nc, ngf=64, n_downsampling=3, n_blocks=9, norm_layer=nn.BatchNorm2d):
+    def __init__(self, input_nc, ngf=64, n_downsampling=3, n_blocks=9, norm_layer=nn.BatchNorm2d, padding_type='reflect'):
         super(Discriminator, self).__init__()
 
         activation = nn.ReLU()
@@ -305,13 +305,14 @@ class Discriminator(nn.Module):
         for i in range(n_blocks):
             model += [ResnetBlock((ngf * mult), padding_type=padding_type, activation=activation, norm_layer=norm_layer)]
 
-        model += [nn.Linear(ngf * mult, 1)]
+        model += [nn.Flatten(), nn.Linear(ngf * mult * 64 * 64, 1)]
         self.model = nn.Sequential(*model)
 
         for m in self.modules():
             weights_init_normal(m)
 
     def forward(self, input):
+        # print(self.model(input).shape)
         return self.model(input)
         
 class VGGFeature(nn.Module):
@@ -399,7 +400,7 @@ def define_feature_decoder(model='mouth', norm='instance', output_nc=1, latent_d
     
     return net_decoder
 
-def define_G(input_nc, output_nc, ngf, n_downsample_global=3, n_blocks_global=9, norm='instance'):
+def define_G(input_nc, ngf, output_nc=3, n_downsample_global=3, n_blocks_global=9, norm='instance'):
     """define generator during Image Synthesis phase"""
     
     norm_layer = get_norm_layer(norm_type=norm)     
