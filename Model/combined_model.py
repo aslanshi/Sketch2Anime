@@ -27,8 +27,8 @@ class Combined_Model(nn.Module):
 
         self.G = netG(self.params)
 
-        # for key in self.parts.keys():
-        #     self.part_encoder[key].load_model('encoder', self.parts[key]['cae_weights'])
+        for key in self.parts.keys():
+            self.part_encoder[key].load_model('encoder', self.parts[key]['cae_weights'])
 
         # load weights for FD and G when inferencing
         if inference:
