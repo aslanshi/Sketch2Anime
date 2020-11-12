@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from PIL import Image
 from models import *
 
 ####################
@@ -9,7 +10,7 @@ from models import *
 class Combined_Model(nn.Module):
 
     """
-    combine all networks and use for inference
+    combine all networks
     """
 
     def __init__(self, params, inference=False):
@@ -22,19 +23,39 @@ class Combined_Model(nn.Module):
         self.part_encoder = {}
         self.part_feature_decoder = {}
         for key in self.parts.keys():
-            self.part_encoder[key] = Component_AE(self.params, key, encoder_only=True)
+            self.part_encoder[key] = Component_AE(self.params, key)
             self.part_feature_decoder[key] = Feature_Decoder(self.params, key)
 
         self.G = netG(self.params)
+        # self.D = netD(self.params)
 
         for key in self.parts.keys():
-            self.part_encoder[key].load_model('encoder', self.parts[key]['cae_weights'])
+            # self.part_encoder[key].load_model('encoder', self.parts[key]['cae_weights'])
+            self.part_encoder[key].load_state_dict(torch.load(self.parts[key]['cae_weights']))
 
         # load weights for FD and G when inferencing
         if inference:
             for key in self.parts.keys():
                 self.part_feature_decoder[key].load_model('encoder', self.parts[key]['fd_weights'])
             self.G.load_model(self.params['g_weights'])
+            # self.D.load_model(self.params['d_weigths'])
+
+    def forward(self, sketch, target):
+
+        #####################################################################################
+        # part_projections = {}
+
+        # for key in self.parts.keys():
+        #     part_projections[key] = self.part_encoder[key].get_projection(components[key])
+        #     part_decoded[key] = self.feature_decoder[key](part_projections[key])
+        #####################################################################################
+
+    	latent = self.part_encoder['face'].get_latent(sketch)
+    	decoded_latent = self.part_feature_decoder['face'](latent)
+
+    	generated_image, hints = self.G(sketch, target)
+
+    	return generated_image, hints
 
     def inference(self, sketch, hint):
 
@@ -69,5 +90,5 @@ class Combined_Model(nn.Module):
 
         #######################
 
-        return generated_image
+        pass
 

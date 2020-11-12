@@ -137,15 +137,28 @@ class Encoder_Res(nn.Module):
         norm_layer=nn.BatchNorm2d
 
         # encode
-        layers_list.append(EncoderBlock(channel_in=input_nc, channel_out=32, kernel_size=4, padding=1, stride=2))  # 176 176 
+        layers_list.append(EncoderBlock(channel_in=input_nc, channel_out=32, kernel_size=4, padding=1, stride=2))
+        layers_list.append(ResnetBlock(32, padding_type=padding_type, activation=activation, norm_layer=norm_layer))
 
-        dim_size = 32
-        for i in range(4):
-            layers_list.append(ResnetBlock(dim_size, padding_type=padding_type, activation=activation, norm_layer=norm_layer)) 
-            layers_list.append(EncoderBlock(channel_in=dim_size, channel_out=dim_size*2, kernel_size=4, padding=1, stride=2)) 
-            dim_size *= 2
+        layers_list.append(EncoderBlock(channel_in=32, channel_out=64, kernel_size=4, padding=1, stride=2))
+        layers_list.append(ResnetBlock(64, padding_type=padding_type, activation=activation, norm_layer=norm_layer))
+        
+        layers_list.append(EncoderBlock(channel_in=64, channel_out=128, kernel_size=4, padding=1, stride=2))
+        # layers_list.append(ResnetBlock(128, padding_type=padding_type, activation=activation, norm_layer=norm_layer))
+        
+        layers_list.append(EncoderBlock(channel_in=128, channel_out=256, kernel_size=4, padding=1, stride=2))
+        layers_list.append(EncoderBlock(channel_in=256, channel_out=512, kernel_size=4, padding=1, stride=2))
 
-        layers_list.append(ResnetBlock(512, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  
+        
+        ################################################# Ignore the following ####################################################
+        # dim_size = 32
+        # for i in range(4):
+        #     layers_list.append(ResnetBlock(dim_size, padding_type=padding_type, activation=activation, norm_layer=norm_layer)) 
+        #     layers_list.append(EncoderBlock(channel_in=dim_size, channel_out=dim_size*2, kernel_size=4, padding=1, stride=2)) 
+        #     dim_size *= 2
+
+        # layers_list.append(ResnetBlock(512, padding_type=padding_type, activation=activation, norm_layer=norm_layer))
+        ############################################################################################################################  
 
         # final shape Bx256*7*6
         self.conv = nn.Sequential(*layers_list)
@@ -179,20 +192,37 @@ class Decoder_Res(nn.Module):
         self.fc = nn.Sequential(nn.Linear(in_features=latent_dim, out_features=longsize))
         layers_list = []
 
-        layers_list.append(ResnetBlock(512, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  # 176 176 
+        layers_list.append(ResnetBlock(512, padding_type=padding_type, activation=activation, norm_layer=norm_layer))
+        layers_list.append(DecoderBlock(channel_in=512, channel_out=256, kernel_size=4, padding=1, stride=2, output_padding=0))
+
+        layers_list.append(ResnetBlock(256, padding_type=padding_type, activation=activation, norm_layer=norm_layer))
+        layers_list.append(DecoderBlock(channel_in=256, channel_out=128, kernel_size=4, padding=1, stride=2, output_padding=0))
         
-        dim_size = 256
-        for i in range(4):
-            layers_list.append(DecoderBlock(channel_in=dim_size*2, channel_out=dim_size, kernel_size=4, padding=1, stride=2, output_padding=0)) #latent*2
-            layers_list.append(ResnetBlock(dim_size, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  
-            dim_size = int(dim_size/2)
+        # layers_list.append(ResnetBlock(128, padding_type=padding_type, activation=activation, norm_layer=norm_layer))
+        layers_list.append(DecoderBlock(channel_in=128, channel_out=64, kernel_size=4, padding=1, stride=2, output_padding=0))
 
-        layers_list.append(DecoderBlock(channel_in=32, channel_out=32, kernel_size=4, padding=1, stride=2, output_padding=0)) #352 352
-        layers_list.append(ResnetBlock(32, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  # 176 176 
-
-        # layers_list.append(DecoderBlock(channel_in=64, channel_out=64, kernel_size=4, padding=1, stride=2, output_padding=0)) #96*160
+        # layers_list.append(ResnetBlock(64, padding_type=padding_type, activation=activation, norm_layer=norm_layer))
+        layers_list.append(DecoderBlock(channel_in=64, channel_out=32, kernel_size=4, padding=1, stride=2, output_padding=0))
+        layers_list.append(DecoderBlock(channel_in=32, channel_out=32, kernel_size=4, padding=1, stride=2, output_padding=0))
+        
         layers_list.append(nn.ReflectionPad2d(2))
         layers_list.append(nn.Conv2d(32, output_nc, kernel_size=5, padding=0))
+        
+        
+        ################################################# Ignore the following ####################################################
+        # dim_size = 256
+        # for i in range(4):
+        #     layers_list.append(DecoderBlock(channel_in=dim_size*2, channel_out=dim_size, kernel_size=4, padding=1, stride=2, output_padding=0)) #latent*2
+        #     layers_list.append(ResnetBlock(dim_size, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  
+        #     dim_size = int(dim_size/2)
+
+        # layers_list.append(DecoderBlock(channel_in=32, channel_out=32, kernel_size=4, padding=1, stride=2, output_padding=0)) #352 352
+        # layers_list.append(ResnetBlock(32, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  # 176 176 
+
+        # # layers_list.append(DecoderBlock(channel_in=64, channel_out=64, kernel_size=4, padding=1, stride=2, output_padding=0)) #96*160
+        # layers_list.append(nn.ReflectionPad2d(2))
+        # layers_list.append(nn.Conv2d(32, output_nc, kernel_size=5, padding=0))
+        ############################################################################################################################
 
         self.conv = nn.Sequential(*layers_list)
 
@@ -232,15 +262,15 @@ class Decoder_feature_Res(nn.Module):
         layers_list.append(ResnetBlock(256, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  # 176 176 
 
         layers_list.append(DecoderBlock(channel_in=256, channel_out=128, kernel_size=4, padding=1, stride=2, output_padding=0)) #88 88 
-        layers_list.append(ResnetBlock(128, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  # 176 176 
+        # layers_list.append(ResnetBlock(128, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  # 176 176 
 
         layers_list.append(DecoderBlock(channel_in=128, channel_out=64, kernel_size=4, padding=1, stride=2, output_padding=0)) #176 176
-        layers_list.append(ResnetBlock(64, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  # 176 176 
+        # layers_list.append(ResnetBlock(64, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  # 176 176 
 
         layers_list.append(DecoderBlock(channel_in=64, channel_out=64, kernel_size=4, padding=1, stride=2, output_padding=0)) #352 352
-        layers_list.append(ResnetBlock(64, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  # 176 176 
+        # layers_list.append(ResnetBlock(64, padding_type=padding_type, activation=activation, norm_layer=norm_layer))  # 176 176 
 
-        # layers_list.append(DecoderBlock(channel_in=64, channel_out=64, kernel_size=4, padding=1, stride=2, output_padding=0)) #96*160
+        ## layers_list.append(DecoderBlock(channel_in=64, channel_out=64, kernel_size=4, padding=1, stride=2, output_padding=0)) #96*160
         layers_list.append(nn.ReflectionPad2d(2))
         layers_list.append(nn.Conv2d(64, output_nc, kernel_size=5, padding=0))
 
@@ -264,29 +294,36 @@ class GlobalGenerator(nn.Module):
         super(GlobalGenerator, self).__init__()
         activation = nn.ReLU()
 
-        model = [nn.ReflectionPad2d(3), nn.Conv2d(input_nc, ngf, 7, padding=0), norm_layer(ngf), activation]
+        model1 = [nn.ReflectionPad2d(3), nn.Conv2d(input_nc, ngf, 7, padding=0), norm_layer(ngf), activation]
+
+        model1 += [nn.Conv2d(ngf, ngf * 2, 3, stride=2, padding=1), norm_layer(ngf * 2), activation]
+
+        self.model1 = nn.Sequential(*model1)
+        
+        model2 = [nn.Conv2d((ngf * 2 + 4), (ngf * 2 * 2), 3, stride=2, padding=1), norm_layer((ngf * 2 * 2)), activation]
+        model2 += [nn.Conv2d((ngf * 4), (ngf * 4 * 2), 3, stride=2, padding=1), norm_layer((ngf * 4 * 2)), activation]
         ### downsample
-        for i in range(n_downsampling):
-            mult = (2 ** i)
-            model += [nn.Conv2d((ngf * mult), ((ngf * mult) * 2), 3, stride=2, padding=1), norm_layer(((ngf * mult) * 2)), activation]
+        # for i in range(n_downsampling):
+        #     mult = (2 ** i)
+        #     model2 += [nn.Conv2d((ngf * mult), ((ngf * mult) * 2), 3, stride=2, padding=1), norm_layer(((ngf * mult) * 2)), activation]
         
         ### resnet blocks
         mult = (2 ** n_downsampling)
         for i in range(n_blocks):
-            model += [ResnetBlock((ngf * mult), padding_type=padding_type, activation=activation, norm_layer=norm_layer)]
+            model2 += [ResnetBlock((ngf * mult), padding_type=padding_type, activation=activation, norm_layer=norm_layer)]
         
         ### upsample 
         for i in range(n_downsampling):
             mult = (2 ** (n_downsampling - i))
-            model += [nn.ConvTranspose2d((ngf * mult), int(((ngf * mult) / 2)), 3, stride=2, padding=1, output_padding=1), norm_layer(int(((ngf * mult) / 2))), activation]
-        model += [nn.ReflectionPad2d(3), nn.Conv2d(ngf, output_nc, 7, padding=0), nn.Tanh()]
-        self.model = nn.Sequential(*model)
+            model2 += [nn.ConvTranspose2d((ngf * mult), int(((ngf * mult) / 2)), 3, stride=2, padding=1, output_padding=1), norm_layer(int(((ngf * mult) / 2))), activation]
+        model2 += [nn.ReflectionPad2d(3), nn.Conv2d(ngf, output_nc, 7, padding=0), nn.Tanh()]
+        self.model2 = nn.Sequential(*model2)
 
         for m in self.modules():
             weights_init_normal(m)
 
     def forward(self, input):
-        return self.model(input)
+        return self.model2(self.model1(input))
 
 class Discriminator(nn.Module):
 
@@ -294,26 +331,33 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         activation = nn.ReLU()
-        model = [nn.ReflectionPad2d(3), nn.Conv2d(input_nc, ngf, 7, padding=0), norm_layer(ngf), activation]
+        model1 = [nn.ReflectionPad2d(3), nn.Conv2d(input_nc, ngf, 7, padding=0), norm_layer(ngf), activation]
+
+        model1 += [nn.Conv2d(ngf, ngf * 2, 3, stride=2, padding=1), norm_layer(ngf * 2), activation]
+
+        self.model1 = nn.Sequential(*model1)
+        
+        model2 = [nn.Conv2d((ngf * 2 + 4), (ngf * 2 * 2), 3, stride=2, padding=1), norm_layer((ngf * 2 * 2)), activation]
+        model2 += [nn.Conv2d((ngf * 4), (ngf * 4 * 2), 3, stride=2, padding=1), norm_layer((ngf * 4 * 2)), activation]
         ### downsample
-        for i in range(n_downsampling):
-            mult = (2 ** i)
-            model += [nn.Conv2d((ngf * mult), ((ngf * mult) * 2), 3, stride=2, padding=1), norm_layer(((ngf * mult) * 2)), activation]
+        # for i in range(n_downsampling):
+        #     mult = (2 ** i)
+        #     model2 += [nn.Conv2d((ngf * mult), ((ngf * mult) * 2), 3, stride=2, padding=1), norm_layer(((ngf * mult) * 2)), activation]
         
         ### resnet blocks
         mult = (2 ** n_downsampling)
         for i in range(n_blocks):
-            model += [ResnetBlock((ngf * mult), padding_type=padding_type, activation=activation, norm_layer=norm_layer)]
+            model2 += [ResnetBlock((ngf * mult), padding_type=padding_type, activation=activation, norm_layer=norm_layer)]
 
-        model += [nn.Flatten(), nn.Linear(ngf * mult * 64 * 64, 1)]
-        self.model = nn.Sequential(*model)
+        model2 += [nn.Flatten(), nn.Linear(ngf * mult * 64 * 64, 1)]
+        self.model2 = nn.Sequential(*model2)
 
         for m in self.modules():
             weights_init_normal(m)
 
     def forward(self, input):
         # print(self.model(input).shape)
-        return self.model(input)
+        return self.model2(self.model1(input))
         
 class VGGFeature(nn.Module):
 
@@ -406,5 +450,14 @@ def define_G(input_nc, ngf, output_nc=3, n_downsample_global=3, n_blocks_global=
     norm_layer = get_norm_layer(norm_type=norm)     
     netG = GlobalGenerator(input_nc, output_nc, ngf, n_downsample_global, n_blocks_global, norm_layer)
     return netG
+
+def define_D(input_nc=3, ngf=64, n_downsampling=3, n_blocks=9, norm_layer=nn.BatchNorm2d, padding_type='reflect'):
+
+    netD = Discriminator(input_nc, ngf, n_downsampling, n_blocks, norm_layer, padding_type)
+    return netD
+
+
+
+
 
 
