@@ -5,6 +5,10 @@ from hint import *
 import torchvision.transforms as transforms
 
 use_gpu = True
+if use_gpu:
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+else:
+    device = "cpu"
 
 class Component_AE(nn.Module):
 
@@ -86,7 +90,7 @@ class netD(nn.Module):
 
     def __init__(self, params):
         super(netD, self).__init__()
-        self.D = define_D(n_downsample=params.D_n_downsampling, n_blocks=params.D_n_blocks)
+        self.D = define_D(n_downsampling=params['D_n_downsampling'], n_blocks=params['D_n_blocks'])
 
     def forward(self, input, hints=None):
         
@@ -105,19 +109,24 @@ class netD(nn.Module):
 
 def get_hints(target):
 
+    """ Note the target has been normalized """
+
+    if not torch.is_tensor(target):
+        target = transforms.ToTensor()(target)
+
+    mean, std = torch.tensor([0.5, 0.5, 0.5], device=device), torch.tensor([0.5, 0.5, 0.5], device=device)
+    # target = target * std + mean
+
     img_size = (512, 512)
     mask_gen = Hint((img_size[0] // 4, img_size[1] // 4), 120, (1, 5), 5, (10, 10))
     htransform = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     hints = []
 
-    if not torch.is_tensor(target):
-      target = transforms.ToTensor()(target)
-
     for i in range(target.shape[0]):
         if use_gpu:
-            hint = mask_gen(target[i].permute(2, 1, 0).detach().cpu().numpy() * 255., htransform).cuda()
+            hint = mask_gen((target[i].permute(2, 1, 0) * std + mean).detach().cpu().numpy() * 255., htransform).cuda()
         else:
-            hint = mask_gen(target[i].permute(2, 1, 0).detach().cpu().numpy() * 255., htransform)
+            hint = mask_gen((target[i].permute(2, 1, 0) * std + mean).detach().cpu().numpy() * 255., htransform)
         hints.append(hint)
 
     return torch.stack(hints)
