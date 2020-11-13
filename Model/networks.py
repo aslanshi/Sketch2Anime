@@ -295,13 +295,12 @@ class GlobalGenerator(nn.Module):
         activation = nn.ReLU()
 
         model1 = [nn.ReflectionPad2d(3), nn.Conv2d(input_nc, ngf, 7, padding=0), norm_layer(ngf), activation]
-
         model1 += [nn.Conv2d(ngf, ngf * 2, 3, stride=2, padding=1), norm_layer(ngf * 2), activation]
+        model1 += [nn.Conv2d((ngf * 2), (ngf * 2 * 2), 3, stride=2, padding=1), norm_layer((ngf * 2 * 2)), activation]
 
         self.model1 = nn.Sequential(*model1)
         
-        model2 = [nn.Conv2d((ngf * 2 + 4), (ngf * 2 * 2), 3, stride=2, padding=1), norm_layer((ngf * 2 * 2)), activation]
-        model2 += [nn.Conv2d((ngf * 4), (ngf * 4 * 2), 3, stride=2, padding=1), norm_layer((ngf * 4 * 2)), activation]
+        model2 = [nn.Conv2d((ngf * 4 + 4), (ngf * 4 * 2), 3, stride=2, padding=1), norm_layer((ngf * 4 * 2)), activation]
         ### downsample
         # for i in range(n_downsampling):
         #     mult = (2 ** i)
@@ -329,16 +328,16 @@ class Discriminator(nn.Module):
 
     def __init__(self, input_nc, ngf=64, n_downsampling=3, n_blocks=9, norm_layer=nn.BatchNorm2d, padding_type='reflect'):
         super(Discriminator, self).__init__()
-
         activation = nn.ReLU()
+        
         model1 = [nn.ReflectionPad2d(3), nn.Conv2d(input_nc, ngf, 7, padding=0), norm_layer(ngf), activation]
 
         model1 += [nn.Conv2d(ngf, ngf * 2, 3, stride=2, padding=1), norm_layer(ngf * 2), activation]
+        model1 += [nn.Conv2d((ngf * 2), (ngf * 2 * 2), 3, stride=2, padding=1), norm_layer((ngf * 2 * 2)), activation]
 
         self.model1 = nn.Sequential(*model1)
-        
-        model2 = [nn.Conv2d((ngf * 2 + 4), (ngf * 2 * 2), 3, stride=2, padding=1), norm_layer((ngf * 2 * 2)), activation]
-        model2 += [nn.Conv2d((ngf * 4), (ngf * 4 * 2), 3, stride=2, padding=1), norm_layer((ngf * 4 * 2)), activation]
+
+        model2 = [nn.Conv2d((ngf * 4 + 4), (ngf * 4 * 2), 3, stride=2, padding=1), norm_layer((ngf * 4 * 2)), activation]
         ### downsample
         # for i in range(n_downsampling):
         #     mult = (2 ** i)

@@ -7,6 +7,8 @@ from models import *
 # work in progress #
 ####################
 
+use_gpu = True
+
 class Combined_Model(nn.Module):
 
     """
@@ -23,6 +25,10 @@ class Combined_Model(nn.Module):
         self.part_encoder = {}
         self.part_feature_decoder = {}
         for key in self.parts.keys():
+          if use_gpu:
+            self.part_encoder[key] = Component_AE(self.params, key).cuda()
+            self.part_feature_decoder[key] = Feature_Decoder(self.params, key).cuda()
+          else:
             self.part_encoder[key] = Component_AE(self.params, key)
             self.part_feature_decoder[key] = Feature_Decoder(self.params, key)
 
@@ -53,7 +59,7 @@ class Combined_Model(nn.Module):
     	latent = self.part_encoder['face'].get_latent(sketch)
     	decoded_latent = self.part_feature_decoder['face'](latent)
 
-    	generated_image, hints = self.G(sketch, target)
+    	generated_image, hints = self.G(decoded_latent, target)
 
     	return generated_image, hints
 

@@ -51,6 +51,9 @@ class Feature_Decoder(nn.Module):
         super(Feature_Decoder, self).__init__()
         self.decoder = define_feature_decoder(model=part, norm=params['FD_norm'], output_nc = params['FD_output_channels'])
 
+    def forward(self, input_component):
+        return self.decoder(input_component)
+
     def load_model(self, weights):
         # load weights for inference and set model to eval mode.
         self.decoder.load_state_dict(torch.load(weights))
@@ -66,8 +69,10 @@ class netG(nn.Module):
     def forward(self, decoded_sketch, target):
         
         x = self.G.model1(decoded_sketch)
+        # print(x.shape)
         hints = get_hints(target)
-        x = torch.concat([x, hints], 1)
+        # print(hints.shape)
+        x = torch.cat([x, hints], 1)
         g_image = self.G.model2(x)
 
         return g_image, hints
@@ -88,7 +93,7 @@ class netD(nn.Module):
         x = self.D.model1(input)
         if hints == None:
             hints = get_hints(input)
-        x = torch.concat([x, hints], 1)
+        x = torch.cat([x, hints], 1)
         score = self.D.model2(x)
 
         return score
@@ -104,11 +109,15 @@ def get_hints(target):
     mask_gen = Hint((img_size[0] // 4, img_size[1] // 4), 120, (1, 5), 5, (10, 10))
     htransform = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     hints = []
-    for i in range(x.shape[0]):
+
+    if not torch.is_tensor(target):
+      target = transforms.ToTensor()(target)
+
+    for i in range(target.shape[0]):
         if use_gpu:
-            hint = mask_gen(transforms.ToTensor()(img).permute(2, 1, 0).detach().cpu().numpy() * 255., htransform).cuda()
+            hint = mask_gen(target[i].permute(2, 1, 0).detach().cpu().numpy() * 255., htransform).cuda()
         else:
-            hint = mask_gen(transforms.ToTensor()(img).permute(2, 1, 0).detach().cpu().numpy() * 255., htransform)
+            hint = mask_gen(target[i].permute(2, 1, 0).detach().cpu().numpy() * 255., htransform)
         hints.append(hint)
 
     return torch.stack(hints)
