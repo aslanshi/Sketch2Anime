@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from networks import *
 from hint import *
+from collections import OrderedDict
 import torchvision.transforms as transforms
 
 use_gpu = True
@@ -60,8 +61,12 @@ class Feature_Decoder(nn.Module):
 
     def load_model(self, weights):
         # load weights for inference and set model to eval mode.
-        self.decoder.load_state_dict(torch.load(weights))
+        try:
+            self.decoder.load_state_dict(torch.load(weights))
+        except:
+            self.decoder.load_state_dict(remove_state_prefix('decoder', torch.load(weights)))
         self.decoder.eval()
+        for p in self.decoder.parameters(): p.requires_grad = False
 
 class netG(nn.Module):
 
@@ -70,11 +75,12 @@ class netG(nn.Module):
         super(netG, self).__init__()
         self.G = define_G(input_nc=params['G_input_nc'], ngf=params['ngf'], norm=params['G_norm'], n_downsample_global=params['G_n_downsampling'], n_blocks_global=params['G_n_blocks'])
 
-    def forward(self, decoded_sketch, target):
+    def forward(self, decoded_sketch, target, hints=None):
         
         x = self.G.model1(decoded_sketch)
         # print(x.shape)
-        hints = get_hints(target)
+        if hints == None:
+            hints = get_hints(target)
         # print(hints.shape)
         x = torch.cat([x, hints], 1)
         g_image = self.G.model2(x)
@@ -83,8 +89,12 @@ class netG(nn.Module):
 
     def load_model(self, weights):
 
-        self.G.load_state_dict(torch.load(weights))
+        try:
+            self.G.load_state_dict(torch.load(weights))
+        except:
+            self.G.load_state_dict(remove_state_prefix('G', torch.load(weights)))
         self.G.eval()
+        for p in self.G.parameters(): p.requires_grad = False
 
 class netD(nn.Module):
 
@@ -100,12 +110,13 @@ class netD(nn.Module):
         x = torch.cat([x, hints], 1)
         score = self.D.model2(x)
 
-        return score
+        return score, hints
 
     def load_model(self, weights):
 
         self.D.load_state_dict(torch.load(weights))
         self.D.eval()
+        for p in self.D.parameters(): p.requires_grad = False
 
 def get_hints(target):
 
@@ -129,7 +140,15 @@ def get_hints(target):
             hint = mask_gen((target[i].permute(2, 1, 0) * std + mean).detach().cpu().numpy() * 255., htransform)
         hints.append(hint)
 
-    return torch.stack(hints)
+    return torch.stack(hints) # (b, 4, 128, 128)
 
+def remove_state_prefix(prefix, state_dict):
+ 
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        name = k.replace(prefix + '.', '')
+        new_state_dict[name] = v
+    
+    return new_state_dict
 
 

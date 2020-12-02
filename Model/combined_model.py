@@ -38,15 +38,17 @@ class Combined_Model(nn.Module):
         for key in self.parts.keys():
             # self.part_encoder[key].load_model('encoder', self.parts[key]['cae_weights'])
             self.part_encoder[key].load_state_dict(torch.load(self.parts[key]['cae_weights']))
+            self.part_encoder[key].eval()
+            for p in self.part_encoder[key].parameters(): p.requires_grad = False
 
         # load weights for FD and G when inferencing
         if inference:
             for key in self.parts.keys():
-                self.part_feature_decoder[key].load_model('encoder', self.parts[key]['fd_weights'])
+                self.part_feature_decoder[key].load_model(self.parts[key]['fd_weights'])
             self.G.load_model(self.params['g_weights'])
-            # self.D.load_model(self.params['d_weigths'])
 
-    def forward(self, sketch, target):
+
+    def forward(self, sketch, target, user_hints=None):
 
         #####################################################################################
         # part_projections = {}
@@ -56,12 +58,12 @@ class Combined_Model(nn.Module):
         #     part_decoded[key] = self.feature_decoder[key](part_projections[key])
         #####################################################################################
 
-    	latent = self.part_encoder['face'].get_latent(sketch)
-    	decoded_latent = self.part_feature_decoder['face'](latent)
+        latent = self.part_encoder['face'].get_latent(sketch)
+        decoded_latent = self.part_feature_decoder['face'](latent)
+        
+        generated_image, hints = self.G(decoded_latent, target, user_hints)
 
-    	generated_image, hints = self.G(decoded_latent, target)
-
-    	return generated_image, hints
+        return generated_image, hints
 
     def inference(self, sketch, hint):
 

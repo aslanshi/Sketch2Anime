@@ -1,3 +1,3 @@
 # Sketch2Anime
 
-![network](./Images/network.png)
+![network](./Images/model.png)

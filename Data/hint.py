@@ -34,7 +34,7 @@ class Stroke(object):
                 draw_strokes = ImageDraw.Draw(strokes)
 
                 # pos   = [np.random.randint(0, w), np.random.randint(0, h)]
-                pos   = [np.random.randint(w/8, w*7/8), np.random.randint(h/8, h*7/8)]
+                pos   = [np.random.randint(w/6, w*5/6), np.random.randint(h/6, h*5/6)]
                 color = tuple(img[pos[0], pos[1]])
                 move  = [
                     np.random.randint(1, self.move_range[0]),

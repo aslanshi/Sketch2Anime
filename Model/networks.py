@@ -360,12 +360,12 @@ class Discriminator(nn.Module):
         
 class VGGFeature(nn.Module):
 
-    def __init__(self):
+    def __init__(self, VGG16_PATH):
         super(VGGFeature, self).__init__()
         vgg = M.vgg16()
         vgg.load_state_dict(torch.load(VGG16_PATH))
         vgg.features = nn.Sequential(*list(vgg.features.children())[:9])
-        self.model   = vgg.features
+        self.model = vgg.features
 
         self.register_buffer('mean', torch.FloatTensor([0.485 - 0.5, 0.456 - 0.5, 0.406 - 0.5]).view(1, 3, 1, 1))
         self.register_buffer('std', torch.FloatTensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
